@@ -1,0 +1,5 @@
+# Artefatos da implementação Java
+/target/
+
+# Dependências do adaptador Node.js
+/motor-smogon/node_modules/
