@@ -46,16 +46,18 @@ Descrever um cenário isolado com um atacante, um golpe e um defensor. A DSL des
 ### Exemplo mínimo
 
 ```txt
-charmander !ember -> caterpie
+charizard !flamethrower -> venusaur
 ```
 
 | Elemento | Significado |
 | --- | --- |
-| `charmander` | Pokémon atacante |
+| `charizard` | Pokémon atacante |
 | `!` | Marcador do golpe |
-| `ember` | Nome do golpe |
+| `flamethrower` | Nome do golpe |
 | `->` | Separador direcionado do atacante para o defensor |
-| `caterpie` | Pokémon defensor |
+| `venusaur` | Pokémon defensor |
+
+A geração adotada é **Pokémon Champions** (`@smogon/calc` 0.12.0, `Generations.get(0)`). A fórmula de dano correspondente está em [docs/formula-dano-champions.md](docs/formula-dano-champions.md).
 
 ### Tokens previstos
 
@@ -79,7 +81,7 @@ Estas regras são provisórias e delimitam o primeiro incremento. Não represent
 - Aceitam hífens entre partes alfanuméricas, como em `mr-mime` e `porygon-z`.
 - Não aceitam hífens iniciais, finais ou consecutivos.
 - Não incluem espaços, acentos ou outros sinais de pontuação.
-- Preservam o texto original, incluindo maiúsculas e minúsculas. A política de comparação e resolução semântica dos nomes permanece pendente.
+- Preservam o texto original, incluindo maiúsculas e minúsculas. Na análise semântica, o nome é normalizado como o `toID` do Smogon (minúsculas, mantendo só letras e dígitos) e comparado ao identificador do catálogo. Portanto `Life-Orb`, `life-orb` e `lifeorb` são equivalentes. A forma recomendada é a minúscula com hífen no lugar de espaços, como `u-turn`, `mr-mime` e `life-orb`.
 
 Uma expressão regular equivalente para a formação dos nomes é:
 
@@ -132,7 +134,8 @@ A existência de uma entidade e a legalidade competitiva de uma combinação sã
 
 | Entrada | Resultado esperado |
 | --- | --- |
-| `charmander !ember -> caterpie` | Estrutura sintática válida; validação semântica depende da geração escolhida |
+| `charizard !flamethrower -> venusaur` | Cenário válido |
+| `charmander !ember -> caterpie` | Estrutura sintática válida; erro semântico, pois as entidades não existem no Champions |
 | `charmander !golpeinexistente -> caterpie` | Estrutura sintática válida; erro semântico por golpe inexistente |
 | `charmander ember -> caterpie` | Erro sintático: falta o marcador `!` |
 | `charmander !ember caterpie` | Erro sintático: falta o separador `->` |
@@ -144,10 +147,8 @@ A existência de uma entidade e a legalidade competitiva de uma combinação sã
 
 Antes da implementação completa, definir e registrar:
 
-- geração e conjunto de regras adotados;
 - revisão futura das regras léxicas provisórias, incluindo nomes com espaços e pontuação fora do subconjunto atual;
-- política de comparação e resolução semântica de nomes quanto a maiúsculas e minúsculas;
-- valores padrão de nível, atributos, itens, habilidades e condições relevantes;
+- valores padrão de condições relevantes. Já decididos: nível 50 (fixo no Champions), SP 0, natureza neutra (`Serious`) e, enquanto não houver sintaxe, a habilidade padrão da espécie;
 - comportamento diante de efeitos implícitos ou padrões do motor que ultrapassem o escopo pretendido;
 - formato de localização dos erros e estrutura do resultado.
 
@@ -163,6 +164,43 @@ Nenhum valor padrão deve depender apenas de uma decisão silenciosa da bibliote
 - Explicação integral dos passos aritméticos internos do motor.
 
 A ausência de sintaxe para um modificador não garante sua ausência no cálculo: os efeitos e padrões do motor deverão ser conferidos ao definir a semântica.
+
+## Catálogo de dados
+
+A análise semântica consulta um catálogo em JSON, extraído do `@smogon/calc` por um script Node e versionado no repositório. Formato acordado:
+
+```json
+{
+  "metadata": {
+    "source": "@smogon/calc",
+    "version": "0.12.0",
+    "generation": "champions",
+    "excluded": [
+      { "kind": "move", "name": "Metal Claw", "reason": "entrada incompleta: sem type, basePower e category" }
+    ]
+  },
+  "species": [
+    {
+      "id": "charizard",
+      "name": "Charizard",
+      "types": ["Fire", "Flying"],
+      "baseStats": { "hp": 78, "atk": 84, "def": 78, "spa": 109, "spd": 85, "spe": 100 },
+      "defaultAbility": "Blaze"
+    }
+  ],
+  "moves": [
+    { "id": "flamethrower", "name": "Flamethrower", "type": "Fire", "category": "Special", "basePower": 90, "minHits": 1, "maxHits": 1 },
+    { "id": "bulletseed", "name": "Bullet Seed", "type": "Grass", "category": "Physical", "basePower": 25, "minHits": 2, "maxHits": 5 }
+  ]
+}
+```
+
+- `id` é o identificador normalizado do motor (`toID`); `name` é o nome canônico exibido na saída.
+- `category` vem da classe `Move` do motor, e não do dado bruto, que omite a categoria dos golpes de status no Champions.
+- `defaultAbility` é a primeira habilidade da espécie no catálogo.
+- Golpes de um acerto têm `minHits` e `maxHits` iguais a 1.
+- Entradas incompletas ficam fora do catálogo e são listadas em `metadata.excluded`, com o motivo.
+- As listas são ordenadas por `id` e o arquivo não contém data de geração. Assim, a mesma versão do motor sempre produz o mesmo arquivo.
 
 ## Reprodutibilidade e limitações
 

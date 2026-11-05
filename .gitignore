@@ -3,3 +3,7 @@
 
 # Dependências do adaptador Node.js
 /motor-smogon/node_modules/
+
+# Ambiente Nix local
+/flake.nix
+/flake.lock
