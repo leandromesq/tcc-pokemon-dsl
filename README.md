@@ -4,6 +4,10 @@ Implementação do artefato do TCC: uma linguagem específica de domínio (DSL) 
 
 O foco do trabalho é o processamento da linguagem. A fórmula de dano é executada pelo motor existente, não por uma calculadora própria.
 
+## Continuidade do desenvolvimento
+
+Consulte [PROGRESSO.md](PROGRESSO.md) para o estado atual, checklist das etapas, próxima tarefa e instruções de colaboração para outros agentes. Esse arquivo deve ser atualizado a cada incremento.
+
 ## Tecnologias e arquitetura
 
 - Java 21 para processamento da DSL.
@@ -33,7 +37,7 @@ A interpretação da DSL pertence ao código Java. O adaptador não deve interpr
 
 ## Especificação inicial da DSL
 
-**Estado: proposta mínima em definição, ainda não implementada.** As decisões pendentes abaixo precisam ser resolvidas antes de considerar esta especificação completa.
+**Estado: lexer, parser e AST mínima implementados; semântica e integração ainda pendentes.** A especificação continua provisória; as decisões pendentes abaixo precisam ser resolvidas antes de considerá-la completa.
 
 ### Objetivo
 
@@ -181,4 +185,4 @@ cd motor-smogon
 npm ci
 ```
 
-O teste Java inicial verifica apenas o funcionamento do ambiente, não a correção da DSL. Os testes do adaptador Node.js ainda precisam ser implementados.
+A suíte Java inclui testes do ambiente, dos tokens, do lexer e do parser. Ela ainda não verifica análise semântica nem cálculo integrado. Os testes do adaptador Node.js ainda precisam ser implementados.
