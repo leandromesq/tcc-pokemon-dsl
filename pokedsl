@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Executa a CLI da DSL. Requer `mvn package` (gera o jar) e `npm ci` em motor-smogon/.
+set -euo pipefail
+
+raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+jar="$raiz/target/pokemon-dsl-0.1.0-SNAPSHOT.jar"
+
+if [[ ! -f "$jar" ]]; then
+    echo "Jar não encontrado: $jar. Execute 'mvn package' na raiz do projeto." >&2
+    exit 2
+fi
+
+exec java -Dpokedsl.adaptador="$raiz/motor-smogon/calcular.js" -jar "$jar" "$@"

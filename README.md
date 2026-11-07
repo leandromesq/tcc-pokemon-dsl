@@ -37,7 +37,7 @@ A interpretação da DSL pertence ao código Java. O adaptador não deve interpr
 
 ## Especificação inicial da DSL
 
-**Estado: lexer, parser e AST mínima implementados; semântica e integração ainda pendentes.** A especificação continua provisória; as decisões pendentes abaixo precisam ser resolvidas antes de considerá-la completa.
+**Estado: sintaxe mínima implementada de ponta a ponta (lexer, parser, análise semântica, integração com o motor e CLI).** A especificação continua provisória; as decisões pendentes abaixo precisam ser resolvidas antes de considerá-la completa.
 
 ### Objetivo
 
@@ -58,6 +58,35 @@ charizard !flamethrower -> venusaur
 | `venusaur` | Pokémon defensor |
 
 A geração adotada é **Pokémon Champions** (`@smogon/calc` 0.12.0, `Generations.get(0)`). A fórmula de dano correspondente está em [docs/formula-dano-champions.md](docs/formula-dano-champions.md).
+
+### Uso da CLI
+
+```bash
+mvn package                 # gera target/pokemon-dsl-0.1.0-SNAPSHOT.jar
+(cd motor-smogon && npm ci) # instala o @smogon/calc, se ainda não instalado
+./pokedsl "charizard !flamethrower -> venusaur"
+```
+
+```txt
+0 SpA Charizard Flamethrower vs. 0 HP / 0 SpD Venusaur: 110-132 (70.9 - 85.1%) -- guaranteed 2HKO
+(110, 110, 114, 114, 116, 116, 120, 120, 120, 122, 122, 126, 126, 128, 128, 132)
+
+Premissas: geração Champions, nível 50, @smogon/calc 0.12.0
+  Charizard: Blaze (habilidade padrão), natureza Serious, SP 0, sem item
+  Venusaur: Overgrow (habilidade padrão), natureza Serious, SP 0, sem item
+  campo: sem clima
+```
+
+- A primeira linha é a descrição produzida pelo motor, no formato usual das calculadoras da comunidade. Em seguida vêm as 16 rolagens de dano (uma linha por acerto, nos golpes de vários acertos) e as premissas aplicadas.
+- Erros são escritos na saída de erros. Os erros semânticos sublinham o nome que os causou:
+
+  ```txt
+  Erro semântico: Espécie desconhecida no catálogo Champions: 'caterpie'
+    charizard !flamethrower -> caterpie
+                               ^^^^^^^^
+  ```
+- Códigos de saída: `0` sucesso, `1` cenário inválido (léxico, sintático ou semântico), `2` uso incorreto, `3` falha no motor.
+- O script `./pokedsl` executa o jar com o caminho do adaptador (`motor-smogon/calcular.js`). Sem o script, use `java -Dpokedsl.adaptador=motor-smogon/calcular.js -jar target/pokemon-dsl-0.1.0-SNAPSHOT.jar "<cenário>"`. O comando `node` precisa estar no PATH.
 
 ### Tokens previstos
 
@@ -128,13 +157,23 @@ cenario = nome, "!", nome, "->", nome, EOF ;
 - **Análise semântica:** resolver nomes e verificar se as entidades e os valores são válidos no escopo adotado.
 - **Adaptador:** converter o cenário validado para os objetos do motor e devolver o resultado.
 
+#### Regras semânticas do cenário mínimo
+
+- Atacante e defensor devem existir entre as espécies do catálogo, e o golpe entre os golpes, com a resolução de nomes descrita em "Nomes".
+- Golpes de status são rejeitados, porque não causam dano.
+- Golpes cujo dano depende de outros fatores são rejeitados provisoriamente, com a mensagem "ainda não suportado": todos os golpes de dano com poder 0 (como `seismic-toss`, `low-kick` e `gyro-ball`) e 14 golpes cujo poder o motor recalcula (`acrobatics`, `assurance`, `barb-barrage`, `eruption`, `hex`, `infernal-parade`, `payback`, `power-trip`, `rising-voltage`, `stored-power`, `terrain-pulse`, `triple-axel`, `water-spout` e `weather-ball`).
+- Padrões aplicados e exibidos nas premissas: habilidade padrão da espécie, natureza `Serious`, SP 0, sem item e sem clima. Golpes de vários acertos usam a contagem fixa (por exemplo, Dual Wingbeat 2). Quando o número de acertos varia, usa-se o mínimo + 1 (Bullet Seed, de 2 a 5, usa 3). Essa última regra é provisória, até existir sintaxe para a contagem.
+
 A existência de uma entidade e a legalidade competitiva de uma combinação são verificações distintas. A checagem de que um Pokémon aprende determinado golpe não faz parte do marco mínimo proposto.
 
 ### Exemplos para orientar os testes
 
 | Entrada | Resultado esperado |
 | --- | --- |
-| `charizard !flamethrower -> venusaur` | Cenário válido |
+| `charizard !flamethrower -> venusaur` | Cenário válido: 110-132 (70.9 - 85.1%) |
+| `venusaur !bullet-seed -> charizard` | Cenário válido, com 3 acertos (mínimo + 1) |
+| `charizard !nasty-plot -> venusaur` | Erro semântico: golpe de status |
+| `charizard !seismic-toss -> venusaur` | Erro semântico: golpe ainda não suportado |
 | `charmander !ember -> caterpie` | Estrutura sintática válida; erro semântico, pois as entidades não existem no Champions |
 | `charmander !golpeinexistente -> caterpie` | Estrutura sintática válida; erro semântico por golpe inexistente |
 | `charmander ember -> caterpie` | Erro sintático: falta o marcador `!` |
@@ -149,8 +188,8 @@ Antes da implementação completa, definir e registrar:
 
 - revisão futura das regras léxicas provisórias, incluindo nomes com espaços e pontuação fora do subconjunto atual;
 - valores padrão de condições relevantes. Já decididos: nível 50 (fixo no Champions), SP 0, natureza neutra (`Serious`) e, enquanto não houver sintaxe, a habilidade padrão da espécie;
-- comportamento diante de efeitos implícitos ou padrões do motor que ultrapassem o escopo pretendido;
-- formato de localização dos erros e estrutura do resultado.
+- comportamento diante de efeitos implícitos ou padrões do motor que ultrapassem o escopo pretendido. Por exemplo, a habilidade padrão de `charizard-mega-y` é Drought, mas o motor **não** ativa o sol sozinho: o cálculo usa "sem clima", como declarado nas premissas;
+- localização dos erros léxicos e sintáticos na CLI. Hoje só os erros semânticos sublinham o trecho; os demais informam a posição na mensagem.
 
 Nenhum valor padrão deve depender apenas de uma decisão silenciosa da biblioteca. Os padrões utilizados precisam ser documentados e enviados explicitamente pelo adaptador quando a API permitir.
 
@@ -221,17 +260,17 @@ O motor será tratado como implementação de referência comunitária, não com
 
 ## Verificação do ambiente
 
-Na pasta `implementacao/`, execute:
-
-```bash
-mvn verify
-```
-
-Para instalar as dependências Node.js a partir do lockfile:
+Instale primeiro as dependências Node.js a partir do lockfile, porque os testes de integração executam o adaptador real:
 
 ```bash
 cd motor-smogon
 npm ci
 ```
 
-A suíte Java inclui testes do ambiente, dos tokens, do lexer e do parser. Ela ainda não verifica análise semântica nem cálculo integrado. Os testes do adaptador Node.js ainda precisam ser implementados.
+Depois, na raiz do repositório:
+
+```bash
+mvn verify
+```
+
+A suíte Java cobre tokens, lexer, parser, catálogo, análise semântica, integração com o motor (reproduz o exemplo verificado da fórmula) e a CLI de ponta a ponta.

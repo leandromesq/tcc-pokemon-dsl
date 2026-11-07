@@ -15,35 +15,30 @@ Este arquivo é o ponto de entrada para retomar o trabalho ou transferi-lo a out
 
 ## Estado atual confirmado
 
-**Último commit remoto inspecionado:** `0da1a41` — `feat: implementa analisador sintático inicial`.
+**Marco atual:** etapas 1 a 6 concluídas para a sintaxe mínima (07/11/2026). A CLI calcula `charizard !flamethrower -> venusaur` de ponta a ponta.
 
-- Lexer manual em Java 21 com nomes ASCII, `!`, `->`, espaços e `EOF`.
-- Tokens preservam lexema e intervalo `[startOffset, endOffset)` em índices UTF-16.
-- Parser manual consome `NAME BANG NAME ARROW NAME EOF`.
-- `Cenario` é a AST mínima: um record com os tokens de atacante, golpe e defensor, preservando suas posições.
-- Erros léxicos e sintáticos usam provisoriamente `IllegalArgumentException`.
-- O parser não consulta dados do domínio: nomes inexistentes podem ser sintaticamente válidos.
-- Dependência Smogon preparada no projeto Node.js; adaptador ainda não implementado.
-- Script `motor-smogon/exportar-catalogo.js` gera o catálogo Champions em `src/main/resources/catalogo-champions.json` (359 espécies, 514 golpes, 11 excluídos); `npm run verificar-catalogo` confere se a cópia versionada está atualizada. O Java ainda não lê o catálogo.
-- Ainda não há validação semântica, cálculo integrado ou CLI.
+- Lexer manual em Java 21 com nomes ASCII, `!`, `->`, espaços e `EOF`. Tokens preservam o lexema e o intervalo `[startOffset, endOffset)`.
+- Parser manual: `NAME BANG NAME ARROW NAME EOF` → `Cenario`, com os tokens de atacante, golpe e defensor. Não consulta o catálogo.
+- Erros léxicos e sintáticos continuam usando `IllegalArgumentException`, com a posição na mensagem.
+- **Catálogo:** `motor-smogon/exportar-catalogo.js` gera `src/main/resources/catalogo-champions.json` (359 espécies, 514 golpes, 11 excluídos). `npm run verificar-catalogo` confere a cópia versionada. Em Java, `Catalogo` carrega o arquivo com Jackson 3.2.4 e busca por `toId`.
+- **Análise semântica:** `AnalisadorSemantico` resolve as entidades, rejeita golpes de status e golpes não suportados, e produz `CenarioResolvido` com os padrões explícitos. `ErroSemantico` guarda o token do erro.
+- **Integração:** `motor-smogon/calcular.js` (JSON pela entrada e saída padrão) e `MotorSmogon` (um processo `node` por cálculo, falhas como `FalhaNoMotor`).
+- **CLI:** `PokeDsl` (classe principal do jar gerado pelo maven-shade-plugin) e o script `./pokedsl`. A saída é a descrição do motor, as rolagens e as premissas (formato escolhido pelo autor).
 
 ### Arquivos de referência
 
 ```txt
-src/main/java/br/edu/tcc/dsl/lexer/
-  TokenType.java
-  Token.java
-  Lexer.java
-src/main/java/br/edu/tcc/dsl/parser/
-  Cenario.java
-  Parser.java
-src/test/java/br/edu/tcc/dsl/
-  AmbienteTest.java
-  lexer/TokenTest.java
-  lexer/LexerTest.java
-  parser/ParserTest.java
-motor-smogon/package.json
-motor-smogon/package-lock.json
+src/main/java/br/edu/tcc/dsl/
+  lexer/      TokenType, Token, Lexer
+  parser/     Cenario, Parser
+  catalogo/   Catalogo, Especie, EstatisticasBase, Golpe, Metadados, Exclusao
+  semantica/  AnalisadorSemantico, CenarioResolvido, Combatente, ErroSemantico
+  motor/      MotorSmogon, ResultadoCalculo, FalhaNoMotor
+  cli/        PokeDsl
+src/main/resources/catalogo-champions.json
+src/test/java/br/edu/tcc/dsl/   um teste por pacote (lexer, parser, catalogo, semantica, motor, cli)
+motor-smogon/exportar-catalogo.js, calcular.js, package.json, package-lock.json
+pokedsl                         script de execução da CLI
 ```
 
 ### Verificação
@@ -58,7 +53,7 @@ nix develop path:. -c mvn verify
 
 Sem Nix, basta ter JDK 21 e Maven 3.9+ no PATH e rodar `mvn verify`.
 
-Há 25 métodos de teste previstos no estado inspecionado: 13 do lexer, 1 de token, 1 de ambiente e 10 do parser. A contagem de métodos não substitui o resultado de execução. Registrar abaixo o resultado mais recente efetivamente obtido.
+Os testes de `motor` e `cli` executam o adaptador Node.js real, então antes é preciso rodar `npm ci` em `motor-smogon/`. A contagem de métodos não substitui o resultado de execução. Registrar abaixo o resultado mais recente efetivamente obtido.
 
 ## Decisões confirmadas pelo autor (05/11/2026)
 
@@ -90,18 +85,30 @@ Estas decisões divergem do projeto de pesquisa ([leandromesq/Projeto-de-Pesquis
 
 - [x] **1. Lexer:** primeiro incremento com tokens, localização e testes.
 - [x] **2. Parser e AST:** estrutura mínima, rejeição de entradas malformadas e testes.
-- [ ] **3. Modelo de domínio e acesso aos dados:** geração, catálogo, parâmetros e padrões explícitos.
-- [ ] **4. Análise semântica:** resolução de entidades e validação do subconjunto suportado.
-- [ ] **5. Integração Smogon:** contrato JSON, adaptador Node.js e tratamento de falhas.
-- [ ] **6. Resultado e CLI:** fluxo textual completo com resultado e premissas.
+- [x] **3. Modelo de domínio e acesso aos dados:** geração, catálogo, parâmetros e padrões explícitos.
+- [x] **4. Análise semântica:** resolução de entidades e validação do subconjunto suportado.
+- [x] **5. Integração Smogon:** contrato JSON, adaptador Node.js e tratamento de falhas.
+- [x] **6. Resultado e CLI:** fluxo textual completo com resultado e premissas.
 - [ ] **7. Extensões controladas:** apenas funcionalidades acordadas para o escopo final.
 - [ ] **8. Avaliação e consolidação:** cenários, evidências, limitações e reprodução.
 
-Testes, documentação e diagnósticos acompanham todas as etapas. A checklist indica marcos iniciais, não componentes que nunca mais precisarão de revisão. O primeiro grande marco será concluir as etapas 1 a 6 para a sintaxe mínima.
+Testes, documentação e diagnósticos acompanham todas as etapas. A checklist indica marcos iniciais, não componentes que nunca mais precisarão de revisão. O primeiro grande marco, as etapas 1 a 6 para a sintaxe mínima, foi concluído em 07/11/2026.
 
-## Próxima tarefa: delimitar o modelo semântico e o acesso ao catálogo
+## Próxima tarefa: escolher a primeira extensão (etapa 7)
 
-**Objetivo:** preparar a etapa 3 sem misturar consulta de dados com o parser nem desenvolver uma calculadora própria.
+**Objetivo:** com o marco mínimo concluído, decidir com o autor qual extensão acordada vem primeiro e registrar sua sintaxe antes de implementá-la. Candidatas, todas no escopo final:
+
+- item (`@`), clima (`~`) e habilidade, com sintaxe a definir;
+- SP e natureza (com validação de SP: 0–32 por estatística, soma ≤ 66);
+- contagem de acertos de golpes multihit (por exemplo, `!bullet-seed(3)`), o que resolve a pendência do padrão provisório;
+- tratamento dos golpes de dano variável, hoje rejeitados.
+
+Outras pendências técnicas, sem urgência:
+
+- localizar os erros léxicos e sintáticos com tipos próprios, como já ocorre no `ErroSemantico`, em vez de `IllegalArgumentException`;
+- registrar a licença e a atribuição dos dados (item abaixo).
+
+## Registro das decisões da etapa 3 (modelo semântico e catálogo)
 
 ### Antes de escrever código
 
@@ -116,12 +123,12 @@ Testes, documentação e diagnósticos acompanham todas as etapas. A checklist i
   - A categoria vem da classe `Move` do motor, não do dado bruto. Isso resolve os 86 golpes de status sem `category`.
   - Entradas incompletas ficam fora do catálogo e são listadas em `metadata.excluded`, com o motivo. Critério: falta `type` ou `basePower`. A falta de `category` não conta, porque a classe `Move` a resolve.
   - O marcador interno `(No Move)` é descartado sem registro.
-- [ ] **Número de acertos padrão dos golpes multihit** (a decidir quando a sintaxe dos acertos for definida). O padrão é uma regra da linguagem: fica na análise semântica, não no catálogo nem no parser. Sugestão: resolver em Java e enviar `hits` sempre explícito, como a habilidade. Comportamento do motor sem `hits` (`src/move.ts:99-112`): intervalo `[a, b]` usa `a + 1` (ou `b` com Skill Link); número fixo usa esse número e **ignora** um `hits` informado, exceto em golpes `multiaccuracy` (Triple Axel). Por isso, a semântica deve validar a contagem contra `minHits..maxHits`. Opções: mínimo + 1 (como o motor), mínimo, ou contagem obrigatória.
-- [ ] **Golpes cujo dano depende de outros fatores** (tratamento adiado pelo autor; serão tratados separadamente). Exemplos:
+- [x] **Número de acertos padrão dos golpes multihit:** decisão provisória do autor (07/11/2026) de usar **mínimo + 1** quando o número de acertos varia, resolvido em Java, enviado explicitamente e exibido nas premissas. Será revisto quando houver sintaxe para a contagem. O padrão é uma regra da linguagem: fica na análise semântica, não no catálogo nem no parser. Sugestão: resolver em Java e enviar `hits` sempre explícito, como a habilidade. Comportamento do motor sem `hits` (`src/move.ts:99-112`): intervalo `[a, b]` usa `a + 1` (ou `b` com Skill Link); número fixo usa esse número e **ignora** um `hits` informado, exceto em golpes `multiaccuracy` (Triple Axel). Por isso, a semântica deve validar a contagem contra `minHits..maxHits`. Opções: mínimo + 1 (como o motor), mínimo, ou contagem obrigatória.
+- [x] **Golpes cujo dano depende de outros fatores** (tratamento adiado pelo autor; serão tratados separadamente). Exemplos:
   - com poder 0: `Seismic Toss` e `Night Shade` (nível), `Gyro Ball` e `Electro Ball` (velocidades), `Low Kick`, `Grass Knot` e `Heavy Slam` (peso), `Flail` e `Reversal` (HP atual), `Super Fang` (HP do alvo);
   - com poder diferente de 0, mas variável: `Eruption`, `Hex`, `Facade`, `Weather Ball` e `Stored Power`.
 
-  **Decisão provisória do autor:** enquanto não houver tratamento próprio, esses golpes são **rejeitados** pela análise semântica, com diagnóstico de golpe ainda não suportado. A lista explícita será montada na etapa 4; o critério "poder 0" sozinho não basta.
+  **Decisão provisória do autor:** enquanto não houver tratamento próprio, esses golpes são **rejeitados** pela análise semântica, com diagnóstico de golpe ainda não suportado. **Lista definida pelo autor (07/11/2026):** todos os golpes de dano com poder 0 (regra geral, 25 golpes no catálogo) mais 14 golpes de poder variável, levantados em `calculateBasePowerChampions` (`champions.ts`): Acrobatics, Assurance, Barb Barrage, Eruption, Hex, Infernal Parade, Payback, Power Trip, Rising Voltage, Stored Power, Terrain Pulse, Triple Axel, Water Spout e Weather Ball (`AnalisadorSemantico.GOLPES_PODER_VARIAVEL`). Golpes com modificador apenas condicional, como Facade, Knock Off e Poltergeist, continuam aceitos: o motor os calcula com o estado declarado nas premissas (sem status e sem item).
 
 ### Achados nos dados do Champions (`@smogon/calc` 0.12.0)
 
@@ -133,27 +140,14 @@ Verificados em 05/11/2026 sobre `Generations.get(0).moves`:
 - Vários golpes de dano fixo ou poder variável têm `basePower` 0 e categoria de dano, como `Seismic Toss`, `Night Shade`, `Super Fang`, `Low Kick`, `Grass Knot`, `Heavy Slam`, `Gyro Ball`, `Flail`, `Reversal` e os golpes de nocaute em um golpe. O dano desses golpes depende de outros fatores (ver pendência acima).
 - [x] Política de nomes definida: `toID` permissivo, sem diferenciar maiúsculas e minúsculas (ver "Consequências da escolha do Champions").
 - [x] Parâmetros do cenário mínimo: nível fixo em 50 (Champions), SP 0, natureza neutra (`Serious`), sem item, sem clima e habilidade padrão da espécie enviada de forma explícita (ver "Consequências da escolha do Champions").
-- [ ] Verificar efeitos implícitos do motor, especialmente habilidades, antes de declarar que determinado modificador está ausente.
-
-### Próximo incremento de implementação a propor ao autor
-
-Depois dessas decisões, definir um contrato mínimo de acesso a espécies e golpes, independente da sintaxe, com testes de entidade encontrada e desconhecida. A forma concreta desse contrato deve ser discutida antes de criar classes ou dependências.
-
-Uma prova pequena de acesso ao catálogo no Node.js pode ser antecipada, se necessária para validar a estratégia. Isso não significa implementar todo o adaptador ou a calculadora nessa etapa.
-
-### Critérios de conclusão da etapa 3
-
-- Geração e fonte de dados explicitadas e versionadas.
-- Política de resolução de nomes documentada.
-- Parâmetros e padrões do cenário mínimo documentados.
-- Contrato de consulta demonstrado por testes, sem consultas ao catálogo no lexer ou parser.
-- README e este arquivo atualizados, com verificação executada.
+- [ ] Verificar efeitos implícitos do motor, especialmente habilidades, antes de declarar que determinado modificador está ausente. Já verificado: habilidades que ativam clima, como Drought em `charizard-mega-y`, **não** ativam o clima no motor (essa automação é da interface web do Smogon, não do `calculate`). O resultado usa "sem clima", como as premissas declaram.
 
 ## Limites que o próximo agente deve preservar
 
 - Sintaxe atual: `charizard !flamethrower -> venusaur` (os testes do lexer e do parser usam `charmander !ember -> caterpie`, que é só um exemplo sintático).
 - Manter `!` e `->`; outras decisões de linguagem poderão ser revistas após um protótipo mais concreto.
 - Não adicionar itens, clima, habilidades ou atributos personalizados antes de acordar o incremento.
+- O adaptador Node.js não escolhe valores padrão: todos os parâmetros chegam explícitos do Java.
 - O motor é `@smogon/calc`, com versão exata no `package.json` e lockfile versionado.
 - Não prometer explicação aritmética integral sem verificar o que o motor permite recuperar.
 - Comparar resultados com o próprio motor verifica a tradução e a integração, não valida independentemente sua fórmula.
@@ -178,6 +172,6 @@ Ao concluir um incremento:
 
 ### Última verificação
 
-- Em 05/11/2026, `nix develop -c mvn verify` (OpenJDK 21.0.12, Maven 3.10.0, Node.js 24.21.0, nixpkgs fixado em `flake.lock`): **BUILD SUCCESS**, 25 testes executados, sem falhas, erros ou testes ignorados.
-- `npm ci` em `motor-smogon/` instalou `@smogon/calc` 0.12.0 sem vulnerabilidades reportadas.
-- Em 07/11/2026, depois de criar o script do catálogo: `npm run exportar-catalogo` gerou 359 espécies, 514 golpes e 11 excluídos. Uma segunda execução produziu um arquivo idêntico (mesmo hash). `npm run verificar-catalogo` passou com o arquivo atual e falhou, como esperado, com um arquivo alterado. `nix develop path:. -c mvn verify` terminou com sucesso.
+- Em 07/11/2026, `nix develop path:. -c mvn verify` (OpenJDK 21.0.12, Maven 3.10.0, Node.js 24.21.0): **BUILD SUCCESS**, 60 testes executados, sem falhas, erros ou testes ignorados.
+- `npm run verificar-catalogo`: o catálogo versionado está atualizado.
+- A CLI foi executada manualmente com `./pokedsl` em cenários válidos (Flamethrower, Bullet Seed e `Charizard-Mega-Y !Heat-Wave -> mr-mime`) e inválidos (espécie desconhecida, golpe não suportado, erro sintático e caractere inesperado). Os resultados e os códigos de saída foram os esperados.
