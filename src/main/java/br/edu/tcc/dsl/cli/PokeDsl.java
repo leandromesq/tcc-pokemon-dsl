@@ -51,8 +51,8 @@ public final class PokeDsl {
 
     int executar(String[] args) {
         if (args.length != 1) {
-            erros.println("Uso: pokedsl \"<atacante> !<golpe> -> <defensor>\"");
-            erros.println("Exemplo: pokedsl \"charizard !flamethrower -> venusaur\"");
+            erros.println("Uso: pokedsl '<atacante> !<golpe> -> <defensor>'");
+            erros.println("Exemplo: pokedsl 'charizard !flamethrower -> venusaur'");
             return USO_INCORRETO;
         }
         String fonte = args[0];

@@ -24,6 +24,7 @@ Este arquivo é o ponto de entrada para retomar o trabalho ou transferi-lo a out
 - **Análise semântica:** `AnalisadorSemantico` resolve as entidades, rejeita golpes de status e golpes não suportados, e produz `CenarioResolvido` com os padrões explícitos. `ErroSemantico` guarda o token do erro.
 - **Integração:** `motor-smogon/calcular.js` (JSON pela entrada e saída padrão) e `MotorSmogon` (um processo `node` por cálculo, falhas como `FalhaNoMotor`).
 - **CLI:** `PokeDsl` (classe principal do jar gerado pelo maven-shade-plugin) e o script `./pokedsl`. A saída é a descrição do motor, as rolagens e as premissas (formato escolhido pelo autor).
+- **Multiplataforma:** Maven Wrapper (`mvnw`, `mvnw.cmd`, Maven 3.10.0), lançadores `pokedsl` e `pokedsl.cmd`, `.gitattributes` com LF fixo (CRLF só nos `.cmd`) e instruções por sistema e terminal no README. O `flake.nix` continua local e fora do Git (decisão do autor), e no Mac mini o ambiente Nix já está configurado. Execução real só no NixOS; Windows, macOS e CachyOS ainda precisam ser conferidos nas máquinas do autor.
 
 ### Arquivos de referência
 
