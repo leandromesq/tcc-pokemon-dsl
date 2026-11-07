@@ -59,13 +59,44 @@ charizard !flamethrower -> venusaur
 
 A geração adotada é **Pokémon Champions** (`@smogon/calc` 0.12.0, `Generations.get(0)`). A fórmula de dano correspondente está em [docs/formula-dano-champions.md](docs/formula-dano-champions.md).
 
-### Uso da CLI
+### Instalação
+
+A CLI funciona em Linux, macOS e Windows. Requisitos:
+
+- **JDK 21** (testado com OpenJDK 21.0.12);
+- **Node.js com npm** (testado com Node.js 24.21.0);
+- **Maven**: não precisa ser instalado. Os scripts `mvnw` (Linux e macOS) e `mvnw.cmd` (Windows) baixam o Maven 3.10.0 na primeira execução, o que exige acesso à internet.
+
+| Sistema | Instalação do JDK e do Node.js |
+| --- | --- |
+| CachyOS e Arch Linux | `sudo pacman -S --needed jdk21-openjdk nodejs npm`. Se houver outro JDK como padrão, use `sudo archlinux-java set java-21-openjdk`. |
+| macOS (Homebrew) | `brew install openjdk@21 node`. O `openjdk@21` não entra no PATH sozinho: use `export PATH="$(brew --prefix openjdk@21)/bin:$PATH"`. |
+| Windows | `winget install EclipseAdoptium.Temurin.21.JDK OpenJS.NodeJS.LTS`. Depois, abra um novo terminal. |
+| Nix (Linux e macOS) | O ambiente local (`flake.nix`, fora do Git) já fornece JDK 21, Maven e Node.js: prefixe os comandos com `nix develop path:. -c`. |
+
+Compilação, na raiz do repositório. Instale primeiro as dependências Node.js, porque os testes executam o adaptador real:
 
 ```bash
-mvn package                 # gera target/pokemon-dsl-0.1.0-SNAPSHOT.jar
-(cd motor-smogon && npm ci) # instala o @smogon/calc, se ainda não instalado
-./pokedsl "charizard !flamethrower -> venusaur"
+cd motor-smogon && npm ci && cd ..
+./mvnw package       # Windows: mvnw.cmd package
 ```
+
+O comando gera `target/pokemon-dsl-0.1.0-SNAPSHOT.jar`.
+
+### Uso da CLI
+
+O cenário é um único argumento entre aspas. A forma de escrever as aspas depende do terminal:
+
+| Terminal | Comando |
+| --- | --- |
+| bash, zsh (padrão do macOS) e fish | `./pokedsl 'charizard !flamethrower -> venusaur'` |
+| PowerShell | `.\pokedsl.cmd 'charizard !flamethrower -> venusaur'` |
+| Prompt de Comando (cmd) | `pokedsl.cmd "charizard !flamethrower -> venusaur"` |
+
+- No bash e no zsh, use aspas **simples**. Dentro de aspas duplas, o `!` aciona o histórico do shell (erro `event not found`).
+- No cmd, use aspas **duplas**. O cmd não reconhece aspas simples, e sem aspas o `>` de `->` redireciona a saída para um arquivo.
+
+Saída:
 
 ```txt
 0 SpA Charizard Flamethrower vs. 0 HP / 0 SpD Venusaur: 110-132 (70.9 - 85.1%) -- guaranteed 2HKO
@@ -86,7 +117,7 @@ Premissas: geração Champions, nível 50, @smogon/calc 0.12.0
                                ^^^^^^^^
   ```
 - Códigos de saída: `0` sucesso, `1` cenário inválido (léxico, sintático ou semântico), `2` uso incorreto, `3` falha no motor.
-- O script `./pokedsl` executa o jar com o caminho do adaptador (`motor-smogon/calcular.js`). Sem o script, use `java -Dpokedsl.adaptador=motor-smogon/calcular.js -jar target/pokemon-dsl-0.1.0-SNAPSHOT.jar "<cenário>"`. O comando `node` precisa estar no PATH.
+- Os scripts `pokedsl` (Linux e macOS) e `pokedsl.cmd` (Windows) executam o jar com o caminho do adaptador (`motor-smogon/calcular.js`) e funcionam a partir de qualquer diretório. Sem eles, rode na raiz do repositório `java -jar target/pokemon-dsl-0.1.0-SNAPSHOT.jar '<cenário>'` ou, de outro diretório, defina `-Dpokedsl.adaptador=<caminho>/motor-smogon/calcular.js`. O comando `node` precisa estar no PATH.
 
 ### Tokens previstos
 
@@ -270,7 +301,7 @@ npm ci
 Depois, na raiz do repositório:
 
 ```bash
-mvn verify
+./mvnw verify        # Windows: mvnw.cmd verify
 ```
 
 A suíte Java cobre tokens, lexer, parser, catálogo, análise semântica, integração com o motor (reproduz o exemplo verificado da fórmula) e a CLI de ponta a ponta.

@@ -1,0 +1,10 @@
+# Finais de linha fixos, para que o projeto funcione igual em Linux, macOS e Windows.
+# O catálogo, por exemplo, é comparado byte a byte por `npm run verificar-catalogo`.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF.
+*.cmd text eol=crlf
+
+# Binários
+*.pdf binary
+*.jar binary
