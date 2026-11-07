@@ -5,7 +5,7 @@ Este arquivo é o ponto de entrada para retomar o trabalho ou transferi-lo a out
 ## Como colaborar
 
 - O projeto também é uma experiência de aprendizado de Java para o autor.
-- **Por padrão, orientar a implementação em pequenos incrementos, explicando código e testes; não implementar o código pelo autor sem solicitação explícita.**
+- **Implementar em pequenos pedaços, um de cada vez:** escrever o trecho, executá-lo, explicar o código e o resultado, e esperar a aprovação do autor antes do próximo (preferência do autor desde 07/11/2026; antes, apenas orientar).
 - Alterações de documentação podem ser realizadas quando solicitadas.
 - Ler o código atual antes de propor o próximo incremento; não presumir que esta checklist substitui a inspeção do repositório.
 - Não ampliar a sintaxe nem escolher valores padrão silenciosamente. Registrar decisões provisórias e pendências.
@@ -24,6 +24,7 @@ Este arquivo é o ponto de entrada para retomar o trabalho ou transferi-lo a out
 - Erros léxicos e sintáticos usam provisoriamente `IllegalArgumentException`.
 - O parser não consulta dados do domínio: nomes inexistentes podem ser sintaticamente válidos.
 - Dependência Smogon preparada no projeto Node.js; adaptador ainda não implementado.
+- Script `motor-smogon/exportar-catalogo.js` gera o catálogo Champions em `src/main/resources/catalogo-champions.json` (359 espécies, 514 golpes, 11 excluídos); `npm run verificar-catalogo` confere se a cópia versionada está atualizada. O Java ainda não lê o catálogo.
 - Ainda não há validação semântica, cálculo integrado ou CLI.
 
 ### Arquivos de referência
@@ -105,7 +106,7 @@ Testes, documentação e diagnósticos acompanham todas as etapas. A checklist i
 ### Antes de escrever código
 
 - [x] Geração definida: Champions. Falta harmonizar o projeto de pesquisa, que ainda diz 9ª geração (Scarlet/Violet).
-- [x] Estratégia do catálogo (decisão do autor): um script Node extrai do `@smogon/calc` 0.12.0 um catálogo Champions em **JSON**, com origem, versão e geração nos metadados. O arquivo gerado **é versionado no repositório** e é lido pelo Java na análise semântica. Um teste deve garantir que a cópia versionada coincide com uma nova geração, para evitar divergência.
+- [x] Estratégia do catálogo (decisão do autor): um script Node extrai do `@smogon/calc` 0.12.0 um catálogo Champions em **JSON**, com origem, versão e geração nos metadados. O arquivo gerado **é versionado no repositório** e é lido pelo Java na análise semântica. A conferência entre a cópia versionada e uma nova geração é feita por `npm run verificar-catalogo`. **Implementado** (script e arquivo gerado).
 - [x] Biblioteca JSON do Java (decisão do autor): **Jackson 3.2.4** (`tools.jackson.core:jackson-databind`). Ainda falta adicioná-la ao `pom.xml` com a versão exata. A mesma biblioteca servirá ao contrato JSON com o adaptador na etapa 5.
 - [ ] Conferir a licença dos dados redistribuídos (`@smogon/calc` é MIT) e registrar a atribuição.
 - [x] Conteúdo do catálogo (decisões do autor):
@@ -113,7 +114,9 @@ Testes, documentação e diagnósticos acompanham todas as etapas. A checklist i
   - A análise semântica rejeita golpes de **status**, com diagnóstico de funcionalidade não suportada.
   - Golpes com **múltiplos acertos são aceitos**. O tratamento fica para depois: pode vir de uma sintaxe para o número de acertos, como `venusaur !bullet-seed(3)`, ou de outra forma a definir. O catálogo guarda `minHits`/`maxHits`, que valem 1/1 nos golpes de um acerto. O caso do Triple Axel (`multiaccuracy`) fica para quando esses golpes forem tratados.
   - A categoria vem da classe `Move` do motor, não do dado bruto. Isso resolve os 86 golpes de status sem `category`.
-  - Entradas incompletas (como `Metal Claw`) ficam fora do catálogo e são listadas em `metadata.excluded`, com o motivo.
+  - Entradas incompletas ficam fora do catálogo e são listadas em `metadata.excluded`, com o motivo. Critério: falta `type` ou `basePower`. A falta de `category` não conta, porque a classe `Move` a resolve.
+  - O marcador interno `(No Move)` é descartado sem registro.
+- [ ] **Número de acertos padrão dos golpes multihit** (a decidir quando a sintaxe dos acertos for definida). O padrão é uma regra da linguagem: fica na análise semântica, não no catálogo nem no parser. Sugestão: resolver em Java e enviar `hits` sempre explícito, como a habilidade. Comportamento do motor sem `hits` (`src/move.ts:99-112`): intervalo `[a, b]` usa `a + 1` (ou `b` com Skill Link); número fixo usa esse número e **ignora** um `hits` informado, exceto em golpes `multiaccuracy` (Triple Axel). Por isso, a semântica deve validar a contagem contra `minHits..maxHits`. Opções: mínimo + 1 (como o motor), mínimo, ou contagem obrigatória.
 - [ ] **Golpes cujo dano depende de outros fatores** (tratamento adiado pelo autor; serão tratados separadamente). Exemplos:
   - com poder 0: `Seismic Toss` e `Night Shade` (nível), `Gyro Ball` e `Electro Ball` (velocidades), `Low Kick`, `Grass Knot` e `Heavy Slam` (peso), `Flail` e `Reversal` (HP atual), `Super Fang` (HP do alvo);
   - com poder diferente de 0, mas variável: `Eruption`, `Hex`, `Facade`, `Weather Ball` e `Stored Power`.
@@ -125,7 +128,7 @@ Testes, documentação e diagnósticos acompanham todas as etapas. A checklist i
 Verificados em 05/11/2026 sobre `Generations.get(0).moves`:
 
 - **86 golpes não têm `category` nos dados brutos.** Todos são de status, com `basePower` 0. A classe `Move` do motor os resolve como `Status`. A regra que define essa categoria padrão (`src/data/moves.ts:5594`, `gen >= 4`) não se aplica ao Champions, cujo número de geração é 0. O script de exportação deve tratar a ausência de categoria explicitamente, e não deixar o campo vazio.
-- **`Metal Claw` está incompleto:** só tem `flags`, sem tipo, poder nem categoria. Parece um defeito dos dados da referência (um *patch* do Champions aplicado a um golpe ausente da lista base). O script deve detectar entradas incompletas e decidir de forma documentada como tratá-las, em vez de exportá-las silenciosamente.
+- **11 golpes incompletos** (verificado em 07/11/2026). `Metal Claw` só tem `flags`, sem tipo nem poder. `Anchor Shot`, `Astral Barrage`, `Blood Moon`, `Bolt Beak`, `Dragon Hammer`, `Fishious Rend`, `Gear Grind`, `Hyper Drill`, `Revelation Dance` e `Triple Dive` têm só `flags` vazias e o `basePower` alterado no Champions, sem tipo nem categoria. Na 9ª geração, os 11 estão completos. Parece que os *patches* do Champions guardam só o campo alterado e, nesses casos, não herdaram o resto. Para eles, a classe `Move` devolve tipo indefinido e categoria `Status`. O script os exclui e lista em `metadata.excluded`. É um possível defeito a reportar ao `@smogon/calc`. Se forem necessários, uma alternativa seria completá-los com os dados da 9ª geração (decisão futura).
 - **14 golpes com múltiplos acertos** (campo `multihit`): Bone Rush, Bullet Seed, Double Hit, Dragon Darts, Dual Wingbeat, Icicle Spear, Pin Missile, Population Bomb, Rock Blast, Scale Shot, Tail Slap, Triple Axel, Twin Beam e Water Shuriken.
 - Vários golpes de dano fixo ou poder variável têm `basePower` 0 e categoria de dano, como `Seismic Toss`, `Night Shade`, `Super Fang`, `Low Kick`, `Grass Knot`, `Heavy Slam`, `Gyro Ball`, `Flail`, `Reversal` e os golpes de nocaute em um golpe. O dano desses golpes depende de outros fatores (ver pendência acima).
 - [x] Política de nomes definida: `toID` permissivo, sem diferenciar maiúsculas e minúsculas (ver "Consequências da escolha do Champions").
@@ -177,4 +180,4 @@ Ao concluir um incremento:
 
 - Em 05/11/2026, `nix develop -c mvn verify` (OpenJDK 21.0.12, Maven 3.10.0, Node.js 24.21.0, nixpkgs fixado em `flake.lock`): **BUILD SUCCESS**, 25 testes executados, sem falhas, erros ou testes ignorados.
 - `npm ci` em `motor-smogon/` instalou `@smogon/calc` 0.12.0 sem vulnerabilidades reportadas.
-- Atualização local de `PROGRESSO.md`, `README.md` e `.gitignore`, mais criação de `docs/formula-dano-champions.md`, ainda sem commit ou push.
+- Em 07/11/2026, depois de criar o script do catálogo: `npm run exportar-catalogo` gerou 359 espécies, 514 golpes e 11 excluídos. Uma segunda execução produziu um arquivo idêntico (mesmo hash). `npm run verificar-catalogo` passou com o arquivo atual e falhou, como esperado, com um arquivo alterado. `nix develop path:. -c mvn verify` terminou com sucesso.

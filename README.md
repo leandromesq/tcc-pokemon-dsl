@@ -167,7 +167,7 @@ A ausência de sintaxe para um modificador não garante sua ausência no cálcul
 
 ## Catálogo de dados
 
-A análise semântica consulta um catálogo em JSON, extraído do `@smogon/calc` por um script Node e versionado no repositório. Formato acordado:
+A análise semântica consulta um catálogo em JSON (`src/main/resources/catalogo-champions.json`), extraído do `@smogon/calc` pelo script `motor-smogon/exportar-catalogo.js` e versionado no repositório. Formato:
 
 ```json
 {
@@ -176,7 +176,7 @@ A análise semântica consulta um catálogo em JSON, extraído do `@smogon/calc`
     "version": "0.12.0",
     "generation": "champions",
     "excluded": [
-      { "kind": "move", "name": "Metal Claw", "reason": "entrada incompleta: sem type, basePower e category" }
+      { "kind": "move", "name": "Metal Claw", "reason": "entrada incompleta: sem type e basePower" }
     ]
   },
   "species": [
@@ -199,8 +199,19 @@ A análise semântica consulta um catálogo em JSON, extraído do `@smogon/calc`
 - `category` vem da classe `Move` do motor, e não do dado bruto, que omite a categoria dos golpes de status no Champions.
 - `defaultAbility` é a primeira habilidade da espécie no catálogo.
 - Golpes de um acerto têm `minHits` e `maxHits` iguais a 1.
-- Entradas incompletas ficam fora do catálogo e são listadas em `metadata.excluded`, com o motivo.
-- As listas são ordenadas por `id` e o arquivo não contém data de geração. Assim, a mesma versão do motor sempre produz o mesmo arquivo.
+- Golpes sem `type` ou sem `basePower` nos dados do motor são considerados incompletos: ficam fora do catálogo e são listados em `metadata.excluded`, com o motivo. A falta de `category`, sozinha, não torna o golpe incompleto, porque a classe `Move` a resolve.
+- O marcador interno `(No Move)` do motor não é exportado.
+- As listas são ordenadas por `id` (e `excluded` por `name`) e o arquivo não contém data de geração. Assim, a mesma versão do motor sempre produz o mesmo arquivo.
+
+Para gerar o catálogo novamente, ou conferir se a cópia versionada está atualizada (por exemplo, depois de mudar a versão do motor):
+
+```bash
+cd motor-smogon
+npm run exportar-catalogo    # grava o arquivo
+npm run verificar-catalogo   # não grava; termina com erro se o arquivo estiver desatualizado
+```
+
+Na versão 0.12.0, o catálogo tem 359 espécies e 514 golpes, com 11 golpes excluídos.
 
 ## Reprodutibilidade e limitações
 
